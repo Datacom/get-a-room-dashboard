@@ -17,14 +17,18 @@
   </head>
   <body>
     <div class="container">
-
       <div class="row">
-        <div id = "pagetitle" class="col-sm-12">
+        <div id='pagetitle' class="col-sm-12">
           <legend></legend>
-         
+          <a class="pull-right reset btn btn-primary" href="javascript:dc.filterAll();dc.redrawAll();">Reset All</a>
+          <span class="pull-right dc-data-count">
+            <span class="filter-count"></span>
+             selected out of 
+            <span class="total-count"></span>
+             room bookings 
+          </span>
         </div>
       </div>
-      
 
       <div class="row">      
         <div class="col-sm-12">
@@ -50,22 +54,19 @@
         </div>
       </div>
       <div class = 'row'>
-        
-        <div id="duration" class="col-sm-6">
+        <div class = 'col-sm-6'>
+          <div id="duration" class="col-sm-12">
               <legend><a href='javascript:duration_chart.filterAll(); dc.redrawAll()' class='pull-right reset' style='display:none;'><i class="fa fa-refresh"> </i> </a></legend>
+          </div>
+          <div id="seats2" class="col-sm-12">
+              <legend><a href='javascript:seats2_chart.filterAll(); dc.redrawAll()' class='pull-right reset' style='display:none;'><i class="fa fa-refresh"> </i> </a></legend>
+          </div>
         </div>
-        
-        <div id = "featureCharts" class='col-sm-6'>
-<!--
-          <div id="teleconference" class="col-sm-6">
-              <legend><a href='javascript:duration_chart.filterAll(); dc.redrawAll()' class='pull-right reset' style='display:none;'><i class="fa fa-refresh"> </i> </a></legend>
-        </div>
--->
-        
+        <div class='col-sm-6'>
+          <div id="featureCharts"  class="row">
           
+          </div>
         </div>
-        
-        
       </div>
     </div> 
     <script type="text/javascript" src="js/charts.js" charset="utf-8"></script>

@@ -3,7 +3,7 @@ var _data = {};
 var _title_text = {};
 var small_chart_height = 150;
 
-var donut_inner = 44
+var donut_inner = 40
 var donut_outer = 70
 var donut_height = 200
 var duration_binsize = .25 // binsize in hours
@@ -12,7 +12,7 @@ var duration_binsize = .25 // binsize in hours
 
 //var valueAccessor =function(d){return d.value < 1 ? 0 : d.value}
 
-var featureCharts = []
+var featureCharts = {}
 
 
 //----------------------------------------CLEANUP functions----------------------------------------------------------------------------
@@ -25,21 +25,28 @@ function cleanup(d) {
   d.duration = (d.end_at - d.start_at)/3600000;
   d.durationBin = Math.floor(d.duration/duration_binsize)*duration_binsize
   d.room.shortName = d.room.name.replace('Meeting Room ', '');
+  
+  
+  //fake some .features data
+  d.room.features.whiteboard = Math.round(Math.random()*3) >= 1?true:false
+  d.room.features.video_conference = Math.round(Math.random()*.8) >= 1?true:false
+  d.room.features.teleconference = Math.round(Math.random()*1.2) >= 1?true:false
+  d.room.features.projector = Math.round(Math.random()*.8) >= 1?true:false
   return d;
 }
 
 
-//-------------------------------------crossfilter reduce functions------------------------------------------------------------------
+//--------------------------crossfilter reduce functions-----------------------------
 
 
-//-------------------------------------Accessor functions---------------------------------
+//--------------------------Accessor functions---------------------------------
 
 
-//-------------------------------------Load data and dictionaries -----------------------------------------------------------
+//--------------------------Load data and dictionaries -----------------------------
 
 queue()
     .defer(d3.json,  "data/getaroom_meetings_data.json")
-    .defer(d3.csv,  "dictionaries/titles.csv")
+    .defer(d3.csv,   "dictionaries/titles.csv")
     .await(showCharts);
 
 function showCharts(err, data, title_text) {
@@ -65,16 +72,30 @@ function showCharts(err, data, title_text) {
 //-------------------------------------------FILTERS-----------------------------------------------
   ndx = crossfilter(_data);
   
-//  dc.dataCount(".dc-data-count")
-//    .dimension(ndx)
-//    .group(ndx.groupAll());  
+  dc.dataCount(".dc-data-count")
+    .dimension(ndx)
+    .group(ndx.groupAll());  
   
 //-----------------------------------ORDINARY CHARTS ------------------------------------------------- 
      
   organizer = ndx.dimension(function(d) {return d.organizer.full_name});
   organizer_group = organizer.group().reduceCount();
+  function isOther(d) {
+    return d && !!d.actual_value;
+  }
  
   organizer_chart = dc.rowChart('#organizer')
+    .data(function(group) {
+      var data = group.all();
+      data = _.sortBy(data, function(d){return -d.value})
+      var head = _.head(data, 10);
+      var tail = _.tail(data, 10);
+      var max_value = d3.max(head, _.property("value"))
+      var other_value = d3.sum(tail, _.property("value"))
+      row_value = Math.min(max_value, other_value)
+      head.push({key:"Other", value:row_value, actual_value:other_value});
+      return head;
+    })
     .dimension(organizer)
     .group(organizer_group)
     //.valueAccessor(valueAccessor)
@@ -82,13 +103,36 @@ function showCharts(err, data, title_text) {
     .height(small_chart_height*2)
     .colors(default_colors)
     .elasticX(true)
-    .ordering(function(d) {return - d.value})
-    .cap(10)
-    .title(function(d){return d.key+': '+title_integer_format(d.value)})
+    .x(d3.scale.linear().domain[0,10])
+    .label(function(d){return d.key + (d.actual_value?(': ' + d.actual_value):'')})
+    .title(function(d){return d.key+': '+title_integer_format(d.actual_value || d.value)})
+    .on('postRender', function(chart){
+      grad = chart.selectAll("g.row").filter(isOther).append("svg:linearGradient")
+        .attr("id", 'organizer_chart_other_grad')
+        .attr("x1", "0%")
+        .attr("y1", "0%")
+        .attr("x2", "100%")
+        .attr("y2", "0%")
+      grad.append("svg:stop")
+        .attr("stop-color", default_colors('Other')).attr("offset","75%")
+      grad.append("svg:stop")
+        .attr("stop-color", default_colors('Other')).attr("offset","75%")
+      grad.append("svg:stop")
+        .attr("stop-color", '#fbfbfb').attr("offset","100%")
+    })
+    .on('pretransition.classify_other', function(chart){
+      chart.selectAll("rect").classed("other", isOther);
+      var other_g = chart.selectAll("g").filter(isOther);
+      other_g.selectAll("rect").attr("fill",'url(#organizer_chart_other_grad)')
+    })
     //.label(function(d){return _label_dict[d.key] ? _label_dict[d.key].Abbreviation : d.key})
 
+  
   organizer_chart.xAxis().ticks(4).tickFormat(integer_format);
+  //organizer_chart.x(d3.scale.linear().domain[0,organizer_group.top(1)[0].value])
   organizer_chart.on('pretransition.dim', dim_zero_rows)
+
+
   
   room = ndx.dimension(function(d) {return d.room.shortName});
   room_group = room.group().reduceCount();
@@ -186,6 +230,26 @@ function showCharts(err, data, title_text) {
   duration_chart.yAxis().ticks(4).tickFormat(title_integer_format);
   duration_chart.xAxis().tickFormat(integer_format); 
   
+  seats2_chart = dc.barChart('#seats2')
+      .dimension(seats)
+      .group(seats_group)
+      .height(small_chart_height)
+      .colors(default_colors)
+      .elasticX(false)
+      .elasticY(true)
+      .x(d3.scale.linear().domain([0,80]))
+      .xUnits(dc.units.fp.precision(1))
+      .centerBar(true)
+      .renderHorizontalGridLines(true)
+      .renderVerticalGridLines(true)
+      .transitionDuration(200)
+  
+  seats2_chart.yAxis().ticks(4).tickFormat(title_integer_format);
+  seats2_chart.xAxis().tickFormat(integer_format); 
+  
+  
+//----------------------- functionally generated pies -----------------  
+  
   function has_feature(feature_name){
     dim = ndx.dimension(function(d){return d.room.features[feature_name]});
     group = dim.group().reduceCount();
@@ -205,19 +269,28 @@ function showCharts(err, data, title_text) {
   keys = Object.keys(_data[0].room.features)
 
   
-  d3.select('#featureCharts').selectAll('div').data(keys).enter().append('div')
+    
+ featureCharts_selection = d3.select('#featureCharts').selectAll('div').data(keys).enter().append('div')
     .attr('id', function(d){return d})
     .classed("col-sm-6",true)
   
-  d3.select('#featureCharts').selectAll('div').append('legend')
-    .text(function(d){return 'Has '+d})
-    .classed('bob',function(d){console.log(d); return false})
+  featureCharts_selection.append('legend')
+    .text(function(d){return 'Has '+ titleCase(d.replace('_',' '))})
   
-  
-  for(feature in keys){
-    featureCharts.push(has_feature(keys[feature]))
+  for(i in keys){
+    feature = keys[i]
+    chart = has_feature(feature)
+    reset = chart.filterAll
+    featureCharts[feature] = {chart:chart,
+                             reset:reset} 
   } 
-  
-  
+
+  featureCharts_selection.select('legend').append('a')
+    .attr('href',function(d){return "javascript:featureCharts."+d+".reset();dc.redrawAll()"})
+    .attr('style','display:none;') 
+    .classed('pull-right reset',true) 
+          
+  featureCharts_selection.select('legend').select('a').append('i').classed('fa fa-refresh',true)
+//  
   dc.renderAll()
 }

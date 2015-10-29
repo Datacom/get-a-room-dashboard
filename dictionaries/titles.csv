@@ -1,5 +1,5 @@
 id,legend_title,hover_text
-pagetitle,Get a Room Dashboard,
+pagetitle,Get a Room Bookings  Dashboard,
 organizer,Organiser,
 room,Room,
 duration,Duration,
@@ -7,3 +7,4 @@ site,Site,
 size,Size,
 seats,Number of Seats in room,
 duration,Duration (hours),
+seats2,Number of Seats in room,
