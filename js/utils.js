@@ -59,6 +59,7 @@ function cleanChartData(precision, orderedBy) {
 //-------------------axis and title formats ---------------------
 var format_s = d3.format('s') //SI prefix
 var format_d = d3.format('d') //integer
+var hours_12 = function(d){return d==12? 'midday' : d%12 + (d>12 ? 'pm':'am')}
 
 var integer_format = function(d){if (d==0) {return format_d(d)} 
                                  else if(d < 1){return ""} //because you can't have fractional consents
